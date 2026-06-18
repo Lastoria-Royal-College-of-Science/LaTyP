@@ -7,19 +7,19 @@ type Props = {
   latex: string;
   displayMode?: boolean;
   className?: string;
-  /** 構文エラー時に表示するプレースホルダ */
+  /** Placeholder displayed when there is a syntax error. */
   fallback?: string;
 };
 
 /**
- * KaTeX で LaTeX 文字列をレンダリングする共通コンポーネント。
- * physics / bm / braket 相当のカスタムマクロを常に適用する。
+ * Shared component that renders a LaTeX string with KaTeX.
+ * Custom macros equivalent to physics / bm / braket are always applied.
  */
 export default function LatexRenderer({
   latex,
   displayMode = true,
   className = "",
-  fallback = "…",
+  fallback = "...",
 }: Props) {
   const { html, error } = useMemo(() => {
     if (!latex.trim()) return { html: "", error: false };
@@ -43,7 +43,7 @@ export default function LatexRenderer({
   if (error) {
     return (
       <span className={`text-amber-500 text-sm ${className}`}>
-        構文エラー（入力途中？）
+        Syntax error. Still typing?
       </span>
     );
   }
