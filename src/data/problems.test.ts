@@ -9,14 +9,14 @@ import {
 import { katexMacros } from "../lib/katexMacros";
 import { expandDerivatives } from "../lib/latexPreprocess";
 
-describe("問題データ", () => {
-  it("ID が重複していない", () => {
+describe("problem data", () => {
+  it("has no duplicate IDs", () => {
     const ids = PROBLEMS.map((p) => p.id);
     expect(new Set(ids).size).toBe(ids.length);
   });
 
   it.each(PROBLEMS.map((p) => [p.id, p.label, p.latex]))(
-    "%s（%s）が KaTeX でレンダリングできる",
+    "%s (%s) renders with KaTeX",
     (_id, _label, latex) => {
       expect(() =>
         katex.renderToString(expandDerivatives(latex), {
@@ -29,7 +29,7 @@ describe("問題データ", () => {
     },
   );
 
-  it("制限時間は 20〜60 秒の範囲", () => {
+  it("keeps time limits in the 20-60 second range", () => {
     for (const p of PROBLEMS) {
       const t = timeLimitFor(p);
       expect(t).toBeGreaterThanOrEqual(20);
@@ -38,11 +38,11 @@ describe("問題データ", () => {
   });
 });
 
-describe("pickUnusedProblem（5秒以内Passの差し替え用）", () => {
-  it("既出の ID は選ばない", () => {
+describe("pickUnusedProblem for free-pass swaps within 5 seconds", () => {
+  it("does not choose an ID that has already appeared", () => {
     const used = new Set<string>();
     const pool = getProblemPool("highschool");
-    // プールを 1 問残してすべて使用済みにする
+    // Mark all questions except one as used.
     pool.slice(1).forEach((p) => used.add(p.id));
     const picked = pickUnusedProblem("highschool", used);
     expect(picked).not.toBeNull();
@@ -50,12 +50,12 @@ describe("pickUnusedProblem（5秒以内Passの差し替え用）", () => {
     expect(used.has(picked!.id)).toBe(false);
   });
 
-  it("候補が尽きたら null", () => {
+  it("returns null when no candidates remain", () => {
     const used = new Set(getProblemPool("highschool").map((p) => p.id));
     expect(pickUnusedProblem("highschool", used)).toBeNull();
   });
 
-  it("複合プールは全範囲から選ぶ", () => {
+  it("chooses from all topics for the mixed pool", () => {
     const picked = pickUnusedProblem("mixed", new Set());
     expect(picked).not.toBeNull();
     expect(PROBLEMS.some((p) => p.id === picked!.id)).toBe(true);

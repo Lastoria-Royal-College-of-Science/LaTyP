@@ -1,42 +1,41 @@
-# 数式タイピング — Math Typing Game
+# Math Typing — Math Typing Game
 
-物理・数学の数式（LaTeX）をターゲットにした、高機能な数式タイピング Web ゲームです。
-「寿司打」のように大量の数式プールからランダム出題され、表記揺れを吸収する柔軟な正誤判定で
-意味が合っていれば正解になります。
+A feature-rich web typing game for physics and mathematics formulas written in LaTeX.
+The game randomly selects questions from a large formula pool and uses flexible answer checking that accepts equivalent notation when the meaning matches.
 
-## 特長
+## Features
 
-- **3 段階の難易度** — 高校範囲 / 大学範囲 / 複合範囲（全 100 問超）
-  - 高校: 微積分・ベクトル・三角関数・力学
-  - 大学: 線形代数・解析学・電磁気学・量子力学・物理数学（フーリエ変換、ローラン展開、特殊関数）
-  - 複合: 全範囲ミックス＋応用物理（分配関数、Berry 位相・曲率、シュバルツシルト計量、転送行列、FD/BE 分布、1 次摂動など）
-- **KaTeX 描画** — `physics`（`\dd` `\grad` `\rot` …）/ `bm`（`\bm`）/ `braket`（`\bra` `\ket` `\braket`）マクロ対応
-- **柔軟な正誤判定** — 文字列完全一致ではなく、KaTeX のレンダリング結果を比較して以下の表記揺れを吸収
-  - 空白の有無（`\int x dx` ⇔ `\int xdx`）
-  - 省略可能な中括弧（`\frac12` ⇔ `\frac{1}{2}`）
-  - コマンドの同義語（`\to` ⇔ `\rightarrow`）
-  - マクロ展開後の同一視（`\bm{v}` ⇔ `\boldsymbol{v}`）
-  - ローマン体（`\mathrm{d}x` ⇔ `dx` ⇔ `\dd x`）
-- **ゲームシステム** — 数式の長さに応じた制限時間（20〜60 秒）、Pass 機能、お手本＆入力のリアルタイムプレビュー
-- **スコア** — 基本点（文字数 × 難易度倍率）＋ 残り時間に応じたタイムボーナス
-- **リザルト＆復習** — 獲得スコア・正解率・判定内訳、出題された全問の模範 LaTeX を一覧で確認
+- **Three difficulty levels** — High school / University / Mixed (100+ total questions)
+  - High school: calculus, vectors, trigonometric functions, and mechanics
+  - University: linear algebra, analysis, electromagnetism, quantum mechanics, and mathematical physics (Fourier transforms, Laurent series, special functions)
+  - Mixed: all topics mixed with applied physics (partition functions, Berry phase and curvature, Schwarzschild metric, transfer matrices, Fermi-Dirac/Bose-Einstein distributions, first-order perturbation, and more)
+- **KaTeX rendering** — supports `physics` (`\dd`, `\grad`, `\rot`, ...), `bm` (`\bm`), and `braket` (`\bra`, `\ket`, `\braket`) macros
+- **Flexible answer checking** — compares KaTeX rendering results instead of requiring exact string matches, accepting notation differences such as:
+  - Spaces or no spaces (`\int x dx` ⇔ `\int xdx`)
+  - Optional braces (`\frac12` ⇔ `\frac{1}{2}`)
+  - Command synonyms (`\to` ⇔ `\rightarrow`)
+  - Equivalent macro expansions (`\bm{v}` ⇔ `\boldsymbol{v}`)
+  - Roman type for differentials (`\mathrm{d}x` ⇔ `dx` ⇔ `\dd x`)
+- **Game system** — time limits based on formula length (20-60 seconds), Pass function, and real-time previews for both the target and your input
+- **Scoring** — base points (character count × difficulty multiplier) plus a time bonus based on the remaining time
+- **Results and review** — check your score, accuracy, result breakdown, and the model LaTeX for every question that appeared
 
-## 技術スタック
+## Tech Stack
 
 - React 19 + TypeScript + Vite
 - Tailwind CSS v4
-- KaTeX（数式描画）
-- Vitest（ユニットテスト）
+- KaTeX (formula rendering)
+- Vitest (unit tests)
 
-## 開発
+## Development
 
 ```bash
 npm install
-npm run dev      # 開発サーバー起動
-npm test         # ユニットテスト（正規化ロジック・全問のレンダリング検証）
-npm run build    # 本番ビルド
+npm run dev      # Start the development server
+npm test         # Run unit tests for normalization logic and rendering validation for all questions
+npm run build    # Build for production
 ```
 
-## ライセンス
+## License
 
 MIT License

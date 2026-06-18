@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/* 正解スタンプ */
+/* Correct-answer stamp */
 @keyframes stamp {
   0% {
     transform: scale(2.2) rotate(-8deg);
@@ -19,7 +19,7 @@
   animation: stamp 0.35s cubic-bezier(0.2, 0.8, 0.3, 1.2) both;
 }
 
-/* 正解時のフラッシュ */
+/* Flash on correct answer */
 @keyframes correct-flash {
   0% {
     background-color: rgb(209 250 229);
@@ -32,7 +32,7 @@
   animation: correct-flash 0.9s ease-out both;
 }
 
-/* 不正解シェイク */
+/* Shake on incorrect answer */
 @keyframes shake {
   0%,
   100% {
@@ -55,7 +55,7 @@
   animation: shake 0.4s ease-in-out both;
 }
 
-/* スコア加算ポップ */
+/* Score-gain pop */
 @keyframes score-pop {
   0% {
     transform: translateY(8px) scale(0.8);
