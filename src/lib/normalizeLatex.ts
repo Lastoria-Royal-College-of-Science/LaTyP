@@ -3,7 +3,7 @@ import { katexMacros } from "./katexMacros";
 import { expandDerivatives } from "./latexPreprocess";
 
 /**
- * コマンドの同義語マップ（正規化時に左辺 → 右辺に統一する）
+ * Command synonym map. During normalization, each key is converted to its value.
  */
 const SYNONYMS: Record<string, string> = {
   "\\to": "\\rightarrow",
@@ -26,7 +26,7 @@ const SYNONYMS: Record<string, string> = {
   "\\impliedby": "\\Leftarrow",
 };
 
-/** LaTeX 文字列をトークン列に分解する（空白は区切りとしてのみ機能し、出力には残らない） */
+/** Splits a LaTeX string into tokens; whitespace only separates tokens and is not emitted. */
 export function tokenizeLatex(input: string): string[] {
   const tokens: string[] = [];
   const re = /\\[a-zA-Z]+|\\.|[^\s]/g;
@@ -37,7 +37,7 @@ export function tokenizeLatex(input: string): string[] {
   return tokens;
 }
 
-/** `{` 単一トークン `}` のような冗長な中括弧を再帰的に除去する */
+/** Recursively removes redundant braces such as `{` single-token `}`. */
 function stripRedundantBraces(tokens: string[]): string[] {
   let changed = true;
   let current = tokens;
@@ -51,7 +51,7 @@ function stripRedundantBraces(tokens: string[]): string[] {
         current[i + 2] === "}" &&
         current[i + 1] !== "{" &&
         current[i + 1] !== "}" &&
-        // 単一トークンが添字対象になり得るコマンドの場合は除去しても等価
+        // Single-token groups can be treated as equivalent when used as subscript/superscript targets.
         true
       ) {
         next.push(current[i + 1]);
@@ -67,19 +67,19 @@ function stripRedundantBraces(tokens: string[]): string[] {
 }
 
 /**
- * 表記揺れを吸収する正規化関数。
- * - 空白の有無を無視
- * - 省略可能な中括弧（\frac12 と \frac{1}{2} など）を統一
- * - コマンドの同義語（\to と \rightarrow など）を統一
- * - \bm → \boldsymbol などマクロ同義語も統一
+ * Normalizes notation differences.
+ * - Ignores whitespace differences.
+ * - Normalizes optional braces such as \frac12 and \frac{1}{2}.
+ * - Normalizes command synonyms such as \to and \rightarrow.
+ * - Normalizes macro synonyms such as \bm and \boldsymbol.
  */
 export function normalizeLatex(input: string): string {
   let tokens = tokenizeLatex(input);
-  // 同義語の統一
+  // Normalize synonyms.
   tokens = tokens.map((t) => SYNONYMS[t] ?? t);
-  // 冗長な中括弧の除去（{x} → x を再帰的に）
+  // Remove redundant braces recursively, e.g. {x} -> x.
   tokens = stripRedundantBraces(tokens);
-  // 再結合：コマンド直後に英字が続く場合はスペースで区切る（\mathrm d が \mathrmd にならないように）
+  // Rejoin tokens. Insert a space when a command is followed by a letter so \mathrm d does not become \mathrmd.
   let out = "";
   for (const t of tokens) {
     if (out !== "" && /\\[a-zA-Z]+$/.test(out) && /^[a-zA-Z]/.test(t)) {
@@ -92,62 +92,62 @@ export function normalizeLatex(input: string): string {
 }
 
 /**
- * ローマン体の揺れを無視する正規化。
- * 「ローマン体は \mathrm でも可」: \mathrm{d}x と dx、\dd x と dx を同一視する。
- * \mathrm / \text / \textrm / \rm のラップを外し、\dd を素の d に展開してから
- * 通常の正規化を行う。
+ * Roman-insensitive normalization.
+ * Allows roman type to be optional: \mathrm{d}x, dx, and \dd x are treated as equivalent.
+ * Removes wrapping commands such as \mathrm / \text / \textrm / \rm and expands \dd to plain d
+ * before applying normal normalization.
  */
 export function normalizeLatexRomanInsensitive(input: string): string {
   let s = input;
-  // \dd → d（physics マクロのローマン体 d も素の d と同一視）
+  // \dd -> d; the roman differential d from the physics macro is treated like plain d.
   s = s.replace(/\\dd\b/g, "d");
-  // \mathrm{...} などのラップを除去（ネストは浅いので繰り返し適用）
+  // Remove wrappers such as \mathrm{...}. Reapply because only shallow nesting is handled.
   const wrapRe = /\\(?:mathrm|textrm|text|rm)\s*\{([^{}]*)\}/g;
   let prev = "";
   while (prev !== s) {
     prev = s;
     s = s.replace(wrapRe, "$1");
   }
-  // 引数括弧なしの \mathrm d のような形（次の1トークンに作用）はトークン除去で対応
+  // Forms like \mathrm d without braces apply to the next token; remove the command token.
   s = s.replace(/\\(?:mathrm|textrm|rm)\b/g, "");
   return normalizeLatex(s);
 }
 
 /**
- * 表記の揺れを「同じ意味なら同じ文字列」に寄せる正準化。
- * latexEquals がレンダリング比較する前に input/target の両方へ適用するので、
- * 見た目（位置やデリミタの種類）が多少違っても同一視できる。
+ * Canonicalizes notation toward the same string when the meaning is equivalent.
+ * latexEquals applies this to both input and target before rendering comparison, so visual
+ * details such as delimiter size or delimiter spelling can still be treated as equivalent.
  *
- * 吸収する揺れ:
- * - 空白コマンド `\,` `\;` `\:` `\!` `\quad` `\qquad` `\ `（積分と dx の間など）は無くても可
- * - デリミタの自動サイズ `\left` `\right` は無視（`\left\langle` ⇔ `\langle`）
- * - 絶対値・縦棒: `\lvert` `\rvert` `\vert` `\abs{…}` を素の `|…|` に統一
- * - プライム: `\prime` / `^{\prime}` / `^{\prime\prime}`（多重）/ `^'` を `'` に統一
- * - 中置分数: `{A \over B}` を `\frac{A}{B}` に統一
- * - 微分の d: `\dd` / `\mathrm{d}` / `\mathrm d` と素の `d` を同一視
- * - 空の中括弧 `{}`（`{}_n` ⇔ `_n`）を除去
+ * Accepted variations:
+ * - Spacing commands such as `\,` `\;` `\:` `\!` `\quad` `\qquad` `\ ` may be omitted.
+ * - Automatic delimiter sizing with `\left` and `\right` is ignored.
+ * - Absolute-value bars: `\lvert` `\rvert` `\vert` and `\abs{...}` normalize to `|...|`.
+ * - Primes: `\prime`, `^{\prime}`, `^{\prime\prime}`, and `^'` normalize to `'`.
+ * - Infix fractions such as `{A \over B}` normalize to `\frac{A}{B}`.
+ * - Differential d: `\dd`, `\mathrm{d}`, `\mathrm d`, and plain `d` are equivalent.
+ * - Empty braces such as `{}` in `{}_n` are removed.
  */
 export function canonicalize(latex: string): string {
-  // physics の導関数マクロ \pdv[n]{}{} / \dv を \frac 形へ展開
+  // Expand physics derivative macros \pdv[n]{}{} / \dv into \frac form.
   let s = expandDerivatives(latex);
 
-  // --- 空白コマンドの除去 ---
+  // --- Remove spacing commands. ---
   s = s.replace(/\\[,;:!]/g, "");
   s = s.replace(/\\(?:quad|qquad)\b/g, "");
   s = s.replace(/\\ /g, "");
 
-  // --- デリミタの自動サイズ \left \right を無視 ---
-  //     \left\langle ⇔ \langle、\left| ⇔ |、\left( ⇔ ( など
+  // --- Ignore automatic delimiter sizing with \left and \right. ---
+  //     Examples: \left\langle <-> \langle, \left| <-> |, \left( <-> (.
   s = s.replace(/\\left\b/g, "").replace(/\\right\b/g, "");
 
-  // --- 中置分数 {A \over B} → \frac{A}{B} ---
+  // --- Infix fraction {A \over B} -> \frac{A}{B}. ---
   let prevOver = "";
   while (prevOver !== s) {
     prevOver = s;
     s = s.replace(/\{([^{}]*?)\\over\b([^{}]*?)\}/g, "\\frac{$1}{$2}");
   }
 
-  // --- 絶対値・縦棒デリミタを | に統一 ---
+  // --- Normalize absolute-value delimiters to |. ---
   s = s.replace(/\\vert\b/g, "|");
   s = s.replace(/\\lvert\b/g, "|").replace(/\\rvert\b/g, "|");
   let prevAbs = "";
@@ -156,29 +156,28 @@ export function canonicalize(latex: string): string {
     s = s.replace(/\\abs\s*\{([^{}]*)\}/g, "|$1|");
   }
 
-  // --- プライムを ' に統一（多重プライム・上付き表記も含む） ---
+  // --- Normalize primes to ', including multiple primes and superscript notation. ---
   s = s.replace(/\\prime/g, "'");
-  s = s.replace(/\^\s*\{\s*('+)\s*\}/g, "$1"); // ^{''} → ''
-  s = s.replace(/\^\s*('+)/g, "$1"); //          ^'   → '
+  s = s.replace(/\^\s*\{\s*('+?)\s*\}/g, "$1"); // ^{''} -> ''
+  s = s.replace(/\^\s*('+)/g, "$1"); //          ^'   -> '
 
-  // --- 微分の d を統一: \dd / \mathrm{d} / \mathrm d と素の d を同一視 ---
-  //     「微分の d は通常の d でも \dd でも \mathrm d でも正解」を実現する。
-  //     文字 d のみ対象なので \mathrm{C}（組合せ）などには影響しない。
+  // --- Normalize differential d: \dd / \mathrm{d} / \mathrm d and plain d are equivalent. ---
+  //     This only targets the character d, so \mathrm{C} for combinations is unaffected.
   s = s.replace(/\\dd\b/g, "d");
   s = s.replace(/\\mathrm\s*\{d\}/g, "d");
   s = s.replace(/\\mathrm\s+d/g, "d");
 
-  // --- 空の中括弧 {} を除去（{}_n と _n を同一視） ---
+  // --- Remove empty braces {} so {}_n and _n are equivalent. ---
   s = s.replace(/\{\}(?=[_^])/g, "");
 
   return s;
 }
 
 /**
- * AST 比較用のマクロセット。表示用の katexMacros とは別に、
- * デリミタを自動サイズ（\left\right）にしない素の形へ展開する。
- * これにより `\braket{\phi|\psi}` と手書きの `\langle\phi|\psi\rangle`、
- * `\abs{x}` と `|x|` などが同じ AST になる。
+ * Macro set used for AST comparison. Unlike the display macros, these expand delimiters
+ * without automatic sizing through \left and \right.
+ * This makes forms like `\braket{\phi|\psi}` and manual `\langle\phi|\psi\rangle`,
+ * or `\abs{x}` and `|x|`, produce the same AST.
  */
 const comparisonMacros: Record<string, string> = {
   ...katexMacros,
@@ -193,18 +192,18 @@ const comparisonMacros: Record<string, string> = {
 };
 
 /**
- * KaTeX のパースツリー（AST）を正準化した文字列キーを返す。
- * AST 比較により、HTML レンダリング比較では吸収しきれない次の揺れを同一視する:
- * - 中括弧の省略（`\frac lg` ⇔ `\frac{l}{g}`、`\sqrt2` ⇔ `\sqrt{2}`）
- *   → 1 要素だけの ordgroup を取り除いて比較
- * - 上付き・下付きの順序（`\sum^n_{k=1}` ⇔ `\sum_{k=1}^{n}`）
- *   → supsub ノードは sub/sup をフィールドで持つため順序非依存。さらにキーをソート
- * canonicalize で空白・絶対値・プライム・\dd・中置分数を吸収してからパースする。
- * 失敗時は null。
+ * Returns a canonical string key for the KaTeX parse tree (AST).
+ * AST comparison handles variations that HTML-rendering comparison may miss:
+ * - Optional braces, such as `\frac lg` vs. `\frac{l}{g}` and `\sqrt2` vs. `\sqrt{2}`.
+ *   Single-element ordgroups are removed before comparison.
+ * - Superscript/subscript order, such as `\sum^n_{k=1}` vs. `\sum_{k=1}^{n}`.
+ *   The supsub node stores sub and sup as fields, so the order is irrelevant after key sorting.
+ * canonicalize absorbs spacing, absolute values, primes, \dd, and infix fractions before parsing.
+ * Returns null on failure.
  */
 function astKey(latex: string): string | null {
   try {
-    // katex.__parse は AST（ParseNode[]）を返す内部 API
+    // katex.__parse is an internal API that returns an AST (ParseNode[]).
     const tree = (
       katex as unknown as {
         __parse: (e: string, o: object) => unknown;
@@ -220,18 +219,18 @@ function astKey(latex: string): string | null {
   }
 }
 
-/** AST を正準化: loc（ソース位置）を除去し、1 要素 ordgroup を展開する */
+/** Canonicalizes the AST by removing loc data and expanding single-element ordgroups. */
 function stripAst(node: unknown): unknown {
   if (Array.isArray(node)) return node.map(stripAst);
   if (node && typeof node === "object") {
     const n = node as Record<string, unknown>;
-    // 1 要素だけの ordgroup（= 冗長な中括弧）は中身に展開して括弧の有無を無視
+    // A single-element ordgroup is just redundant braces, so expand it and ignore brace presence.
     if (n.type === "ordgroup" && Array.isArray(n.body) && n.body.length === 1) {
       return stripAst(n.body[0]);
     }
     const out: Record<string, unknown> = {};
     for (const k of Object.keys(n)) {
-      if (k === "loc") continue; // ソース位置は意味に無関係
+      if (k === "loc") continue; // Source positions are not semantically meaningful.
       out[k] = stripAst(n[k]);
     }
     return out;
@@ -239,7 +238,7 @@ function stripAst(node: unknown): unknown {
   return node;
 }
 
-/** オブジェクトのキー順に依存しない安定した JSON 文字列化 */
+/** Stable JSON stringification that is independent of object key order. */
 function stableStringify(value: unknown): string {
   return JSON.stringify(value, (_key, val) => {
     if (val && typeof val === "object" && !Array.isArray(val)) {
@@ -253,7 +252,7 @@ function stableStringify(value: unknown): string {
   });
 }
 
-/** KaTeX レンダリング結果（HTML）を取得。失敗時は null */
+/** Returns KaTeX-rendered HTML, or null if rendering fails. */
 function renderOrNull(latex: string): string | null {
   try {
     return katex.renderToString(latex, {
@@ -262,8 +261,7 @@ function renderOrNull(latex: string): string | null {
       throwOnError: true,
       strict: false,
       trust: false,
-      // MathML には元入力の LaTeX 文字列がそのまま埋め込まれるため、
-      // 意味比較には HTML 出力のみを使う
+      // MathML embeds the original LaTeX input, so only HTML output is used for semantic comparison.
       output: "html",
     });
   } catch {
@@ -272,10 +270,11 @@ function renderOrNull(latex: string): string | null {
 }
 
 /**
- * 2つの LaTeX 文字列が「意味的に同じ出力」になるかを判定する。
- * 1. KaTeX のレンダリング結果（HTML）が一致すれば正解
- *    → 空白・省略括弧・同義語・マクロ展開の揺れをすべて吸収できる
- * 2. レンダリング不能な場合は正規化文字列の比較にフォールバック
+ * Checks whether two LaTeX strings produce semantically equivalent output.
+ * 1. First compares canonicalized KaTeX ASTs.
+ * 2. Falls back to raw rendering comparison.
+ * 3. Then compares rendering after canonicalization.
+ * 4. Finally compares normalized strings, including roman-insensitive normalization.
  */
 export function latexEquals(input: string, target: string): boolean {
   const a = input.trim();
@@ -283,28 +282,28 @@ export function latexEquals(input: string, target: string): boolean {
   if (!a) return false;
   if (a === b) return true;
 
-  // 1) AST（パースツリー）比較 — メインの判定
-  //    中括弧の省略・上下付きの順序・空白・\dd/d・絶対値・プライム・中置分数を吸収
+  // 1) AST comparison is the primary check.
+  //    Absorbs omitted braces, super/subscript ordering, spaces, \dd/d, absolute values, primes, and infix fractions.
   const ka = astKey(a);
   const kb = astKey(b);
   if (ka !== null && kb !== null && ka === kb) return true;
 
-  // 2) 素のままレンダリング比較（AST が取れない構文のフォールバック）
+  // 2) Raw rendering comparison, used as a fallback for syntax that cannot be parsed into an AST.
   const ra = renderOrNull(a);
   const rb = renderOrNull(b);
   if (ra !== null && rb !== null && ra === rb) return true;
 
-  // 3) 正準化してからレンダリング比較
+  // 3) Rendering comparison after canonicalization.
   const ca = canonicalize(a);
   const cb = canonicalize(b);
   const rca = renderOrNull(ca);
   const rcb = renderOrNull(cb);
   if (rca !== null && rcb !== null && rca === rcb) return true;
 
-  // 4) 文字列正規化での比較（レンダリング不能時のフォールバック）
+  // 4) String normalization fallback when rendering fails.
   if (normalizeLatex(a) === normalizeLatex(b)) return true;
   if (normalizeLatex(ca) === normalizeLatex(cb)) return true;
-  // 5) さらにローマン体の揺れ（\mathrm{d}x と dx など）を無視して比較
+  // 5) Also ignore roman-type differences such as \mathrm{d}x vs. dx.
   return (
     normalizeLatexRomanInsensitive(a) === normalizeLatexRomanInsensitive(b)
   );
