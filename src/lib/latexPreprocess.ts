@@ -1,16 +1,16 @@
 /**
- * physics パッケージの導関数マクロ \pdv / \dv を、省略可能引数（階数）込みで
- * \frac 形に自前展開する前処理。
- * KaTeX のマクロ文字列定義は省略可能引数 [n] を扱えないため、
- * レンダリング前（LatexRenderer）と判定の正準化前（canonicalize）の両方で適用する。
+ * Preprocesses physics-package derivative macros \pdv / \dv into \frac form,
+ * including optional order arguments.
+ * KaTeX string macro definitions cannot handle optional arguments like [n], so this
+ * runs before rendering in LatexRenderer and before canonicalization for checking.
  *
- * 対応する形:
- *   \pdv[2]{x}{t} → \frac{\partial^{2} x}{\partial t^{2}}   （n 階偏微分）
- *   \pdv{f}{x}    → \frac{\partial f}{\partial x}
- *   \pdv{x}       → \frac{\partial}{\partial x}              （演算子形）
- *   \dv[2]{x}{t}  → \frac{\mathrm{d}^{2} x}{\mathrm{d} t^{2}}
- *   \dv{f}{x}     → \frac{\mathrm{d} f}{\mathrm{d} x}
- *   \dv{x}        → \frac{\mathrm{d}}{\mathrm{d} x}
+ * Supported forms:
+ *   \pdv[2]{x}{t} -> \frac{\partial^{2} x}{\partial t^{2}}   (nth partial derivative)
+ *   \pdv{f}{x}    -> \frac{\partial f}{\partial x}
+ *   \pdv{x}       -> \frac{\partial}{\partial x}              (operator form)
+ *   \dv[2]{x}{t}  -> \frac{\mathrm{d}^{2} x}{\mathrm{d} t^{2}}
+ *   \dv{f}{x}     -> \frac{\mathrm{d} f}{\mathrm{d} x}
+ *   \dv{x}        -> \frac{\mathrm{d}}{\mathrm{d} x}
  */
 
 const DERIV_D: Record<string, string> = {
@@ -18,7 +18,7 @@ const DERIV_D: Record<string, string> = {
   "\\dv": "\\mathrm{d}",
 };
 
-/** s[i] の開き括弧に対応する閉じ括弧までを読む。中身と閉じ括弧直後の位置を返す */
+/** Reads from an opening bracket at s[i] through its matching closing bracket. */
 function readGroup(
   s: string,
   i: number,
@@ -42,7 +42,7 @@ function skipSpaces(s: string, i: number): number {
   return i;
 }
 
-/** cmd（例 "\\pdv"）の出現位置を探す。直後が英字の場合（別コマンド）は除外 */
+/** Finds cmd, excluding matches followed by a letter because those belong to another command. */
 function findCommand(s: string, cmd: string): number {
   let from = 0;
   for (;;) {
@@ -67,7 +67,7 @@ export function expandDerivatives(input: string): string {
       let i = idx + cmd.length;
       i = skipSpaces(s, i);
 
-      // 省略可能な階数 [n]
+      // Optional order [n].
       let order = "";
       if (s[i] === "[") {
         const g = readGroup(s, i, "[", "]");
@@ -77,8 +77,8 @@ export function expandDerivatives(input: string): string {
         }
       }
 
-      // 第1引数 {…}
-      if (s[i] !== "{") continue; // 想定外の形はそのまま残す
+      // First argument {…}.
+      if (s[i] !== "{") continue; // Leave unexpected forms untouched.
       const g1 = readGroup(s, i, "{", "}");
       if (!g1) continue;
 
@@ -88,7 +88,7 @@ export function expandDerivatives(input: string): string {
       let end: number;
 
       if (s[j] === "{") {
-        // 2 引数形 \pdv{f}{x}
+        // Two-argument form, e.g. \pdv{f}{x}.
         const g2 = readGroup(s, j, "{", "}");
         if (!g2) continue;
         replacement = order
@@ -96,7 +96,7 @@ export function expandDerivatives(input: string): string {
           : `\\frac{${d} ${g1.content}}{${d} ${g2.content}}`;
         end = g2.end;
       } else {
-        // 演算子形 \pdv{x}
+        // Operator form, e.g. \pdv{x}.
         replacement = order
           ? `\\frac{${d}^{${order}}}{${d} ${g1.content}^{${order}}}`
           : `\\frac{${d}}{${d} ${g1.content}}`;
@@ -105,7 +105,7 @@ export function expandDerivatives(input: string): string {
 
       s = s.slice(0, idx) + replacement + s.slice(end);
       changed = true;
-      break; // s が変わったので最初から探し直す
+      break; // The string changed, so search again from the beginning.
     }
   }
   return s;
