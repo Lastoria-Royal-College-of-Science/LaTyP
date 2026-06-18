@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { normalizeLatex, latexEquals, tokenizeLatex } from "./normalizeLatex";
 
 describe("tokenizeLatex", () => {
-  it("コマンド・記号・文字に分解する", () => {
+  it("splits commands, symbols, and characters", () => {
     expect(tokenizeLatex("\\frac{1}{2}")).toEqual([
       "\\frac",
       "{",
@@ -13,146 +13,146 @@ describe("tokenizeLatex", () => {
       "}",
     ]);
   });
-  it("空白を無視する", () => {
+  it("ignores whitespace", () => {
     expect(tokenizeLatex("x + y")).toEqual(["x", "+", "y"]);
   });
 });
 
-describe("normalizeLatex: 空白の揺れ", () => {
-  it("スペースの有無を無視する", () => {
+describe("normalizeLatex: whitespace variations", () => {
+  it("ignores spaces", () => {
     expect(normalizeLatex("\\int x dx")).toBe(normalizeLatex("\\int xdx"));
   });
-  it("コマンド境界は維持する（\\mathrm d が壊れない）", () => {
+  it("keeps command boundaries so \\mathrm d is not broken", () => {
     expect(normalizeLatex("\\mathrm d x")).not.toContain("\\mathrmd");
   });
 });
 
-describe("normalizeLatex: 省略可能な中括弧", () => {
-  it("\\frac12 と \\frac{1}{2} を同一視", () => {
+describe("normalizeLatex: optional braces", () => {
+  it("treats \\frac12 and \\frac{1}{2} as equivalent", () => {
     expect(normalizeLatex("\\frac{1}{2}")).toBe(normalizeLatex("\\frac12"));
   });
-  it("\\sqrt2 と \\sqrt{2} を同一視", () => {
+  it("treats \\sqrt2 and \\sqrt{2} as equivalent", () => {
     expect(normalizeLatex("\\sqrt{2}")).toBe(normalizeLatex("\\sqrt2"));
   });
-  it("ネストした冗長括弧 {{x}} も除去", () => {
+  it("also removes nested redundant braces such as {{x}}", () => {
     expect(normalizeLatex("{{x}}")).toBe("x");
   });
-  it("複数トークンの括弧は維持する", () => {
+  it("keeps braces around multiple tokens", () => {
     expect(normalizeLatex("\\frac{a+b}{2}")).not.toBe(
       normalizeLatex("\\frac a+b2"),
     );
   });
 });
 
-describe("normalizeLatex: コマンドの同義語", () => {
-  it("\\to と \\rightarrow を同一視", () => {
+describe("normalizeLatex: command synonyms", () => {
+  it("treats \\to and \\rightarrow as equivalent", () => {
     expect(normalizeLatex("x \\to 0")).toBe(normalizeLatex("x \\rightarrow 0"));
   });
-  it("\\le と \\leq を同一視", () => {
+  it("treats \\le and \\leq as equivalent", () => {
     expect(normalizeLatex("a \\le b")).toBe(normalizeLatex("a \\leq b"));
   });
-  it("\\dfrac と \\frac を同一視", () => {
+  it("treats \\dfrac and \\frac as equivalent", () => {
     expect(normalizeLatex("\\dfrac{1}{2}")).toBe(normalizeLatex("\\frac{1}{2}"));
   });
 });
 
-describe("latexEquals: レンダリング比較による意味的一致", () => {
-  it("空白の揺れを吸収する", () => {
+describe("latexEquals: semantic matching through rendering", () => {
+  it("absorbs whitespace variations", () => {
     expect(latexEquals("\\int x^2 \\, dx", "\\int x^2 \\,dx")).toBe(true);
   });
-  it("\\frac12 と \\frac{1}{2}", () => {
+  it("matches \\frac12 and \\frac{1}{2}", () => {
     expect(latexEquals("\\frac12", "\\frac{1}{2}")).toBe(true);
   });
-  it("\\bm{v} と \\boldsymbol{v} を同一視（マクロ展開）", () => {
+  it("treats \\bm{v} and \\boldsymbol{v} as equivalent through macro expansion", () => {
     expect(latexEquals("\\bm{v}", "\\boldsymbol{v}")).toBe(true);
   });
-  it("\\to と \\rightarrow を同一視", () => {
+  it("treats \\to and \\rightarrow as equivalent", () => {
     expect(latexEquals("x \\to \\infty", "x \\rightarrow \\infty")).toBe(true);
   });
-  it("\\grad と \\nabla を同一視（physics マクロ）", () => {
+  it("treats \\grad and \\nabla as equivalent through the physics macro", () => {
     expect(latexEquals("\\grad f", "\\nabla f")).toBe(true);
   });
-  it("\\rot と \\nabla\\times を同一視", () => {
+  it("treats \\rot and \\nabla\\times as equivalent", () => {
     expect(latexEquals("\\rot \\bm{E}", "\\nabla\\times\\boldsymbol{E}")).toBe(
       true,
     );
   });
-  it("\\dd x と \\mathrm{d}x を同一視", () => {
+  it("treats \\dd x and \\mathrm{d}x as equivalent", () => {
     expect(latexEquals("\\dd x", "\\mathrm{d}x")).toBe(true);
   });
-  it("異なる数式は不正解", () => {
+  it("rejects different formulas", () => {
     expect(latexEquals("x^2", "x^3")).toBe(false);
     expect(latexEquals("\\frac{1}{2}", "\\frac{1}{3}")).toBe(false);
   });
-  it("空入力は不正解", () => {
+  it("rejects empty input", () => {
     expect(latexEquals("", "x")).toBe(false);
     expect(latexEquals("   ", "x")).toBe(false);
   });
-  it("構文エラーの入力は正規化フォールバックで判定", () => {
+  it("handles syntax-error input through the normalization fallback", () => {
     expect(latexEquals("\\frac{1}{", "\\frac{1}{2}")).toBe(false);
   });
-  it("ローマン体: \\mathrm{d}x と dx を同一視", () => {
+  it("roman type: treats \\mathrm{d}x and dx as equivalent", () => {
     expect(latexEquals("\\int x^2 \\mathrm{d}x", "\\int x^2 dx")).toBe(true);
   });
-  it("ローマン体: \\dd x と dx を同一視", () => {
+  it("roman type: treats \\dd x and dx as equivalent", () => {
     expect(latexEquals("\\dd x", "dx")).toBe(true);
     expect(latexEquals("dx", "\\dd x")).toBe(true);
   });
-  it("ローマン体: \\mathrm{tr} と tr を同一視", () => {
+  it("roman type: treats \\mathrm{tr} and tr as equivalent", () => {
     expect(latexEquals("\\mathrm{tr}(AB)", "tr(AB)")).toBe(true);
   });
-  it("ローマン体でも中身が違えば不正解", () => {
+  it("still rejects roman-type expressions with different content", () => {
     expect(latexEquals("\\mathrm{d}y", "dx")).toBe(false);
   });
-  it("braket 記法", () => {
+  it("supports braket notation", () => {
     expect(latexEquals("\\braket{\\phi|\\psi}", "\\braket{\\phi | \\psi}")).toBe(
       true,
     );
   });
 });
 
-describe("latexEquals: 追加の表記許容ルール", () => {
-  it("積分と dx の間の \\, は省略可", () => {
+describe("latexEquals: additional accepted notation rules", () => {
+  it("allows omitted \\, between an integral and dx", () => {
     expect(latexEquals("\\int x^2 dx", "\\int x^2 \\, dx")).toBe(true);
     expect(latexEquals("\\int x^2 \\, dx", "\\int x^2 dx")).toBe(true);
   });
-  it("\\; \\: \\! \\quad などの空白コマンドも省略可", () => {
+  it("also allows omitted spacing commands such as \\; \\: \\! and \\quad", () => {
     expect(latexEquals("a b", "a \\quad b")).toBe(true);
     expect(latexEquals("a+b", "a\\!+\\;b")).toBe(true);
   });
-  it("\\frac は 1 文字引数なら {} 不要", () => {
+  it("allows {} to be omitted for one-character \\frac arguments", () => {
     expect(latexEquals("\\frac lg", "\\frac{l}{g}")).toBe(true);
     expect(latexEquals("T = 2\\pi\\sqrt{\\frac lg}", "T = 2\\pi\\sqrt{\\frac{l}{g}}")).toBe(true);
     expect(latexEquals("\\frac12", "\\frac{1}{2}")).toBe(true);
   });
-  it("絶対値は | / \\lvert\\rvert / \\abs のいずれでも可", () => {
+  it("allows absolute value as |, \\lvert\\rvert, or \\abs", () => {
     expect(latexEquals("\\lvert x \\rvert", "|x|")).toBe(true);
     expect(latexEquals("\\abs{x}", "|x|")).toBe(true);
     expect(latexEquals("\\abs{x}", "\\lvert x \\rvert")).toBe(true);
     expect(latexEquals("\\left| x \\right|", "|x|")).toBe(true);
   });
-  it("プライムは ' でも \\prime でも可", () => {
+  it("allows primes written as ' or \\prime", () => {
     expect(latexEquals("f'(x)", "f^{\\prime}(x)")).toBe(true);
     expect(latexEquals("f'", "f\\prime")).toBe(true);
     expect(latexEquals("x'", "x^\\prime")).toBe(true);
   });
-  it("分数は \\frac でも {A \\over B} でも可", () => {
+  it("allows fractions written with \\frac or {A \\over B}", () => {
     expect(latexEquals("\\frac{a}{b}", "{a \\over b}")).toBe(true);
     expect(latexEquals("{a+b \\over c}", "\\frac{a+b}{c}")).toBe(true);
   });
-  it("中身が違う絶対値・分数は不正解のまま", () => {
+  it("still rejects absolute values and fractions with different content", () => {
     expect(latexEquals("\\abs{x}", "|y|")).toBe(false);
     expect(latexEquals("{a \\over b}", "\\frac{a}{c}")).toBe(false);
   });
 });
 
-describe("latexEquals: 微分の d は通常の d でも \\dd でも可（全問題統一）", () => {
-  it("dx ⇔ \\dd x ⇔ \\mathrm{d}x", () => {
+describe("latexEquals: differential d can be plain d, \\dd, or roman d", () => {
+  it("matches dx, \\dd x, and \\mathrm{d}x", () => {
     expect(latexEquals("\\int x^2 dx", "\\int x^2 \\, \\dd x")).toBe(true);
     expect(latexEquals("\\int x^2 \\dd x", "\\int x^2 dx")).toBe(true);
     expect(latexEquals("\\int x^2 \\mathrm{d}x", "\\int x^2 \\dd x")).toBe(true);
   });
-  it("ガウス積分: dx 表記でも \\, \\dd x の模範解答に一致", () => {
+  it("Gaussian integral: dx notation matches the model answer using \\, \\dd x", () => {
     expect(
       latexEquals(
         "\\int_{-\\infty}^{\\infty} e^{-x^2} dx=\\sqrt \\pi",
@@ -160,21 +160,21 @@ describe("latexEquals: 微分の d は通常の d でも \\dd でも可（全問
       ),
     ).toBe(true);
   });
-  it("\\mathrm{d} / \\mathrm d も微分 d として \\dd・d と一致", () => {
+  it("also treats \\mathrm{d} and \\mathrm d as differential d", () => {
     expect(latexEquals("\\mathrm{d}x", "\\dd x")).toBe(true);
     expect(latexEquals("\\mathrm dx", "\\dd x")).toBe(true);
     expect(latexEquals("\\mathrm dx", "dx")).toBe(true);
   });
 });
 
-describe("latexEquals: \\frac{A}B（分母が1文字・中括弧省略）", () => {
-  it("\\frac{\\sin x}x ⇔ \\frac{\\sin x}{x}", () => {
+describe("latexEquals: \\frac{A}B with one-character denominator and omitted braces", () => {
+  it("matches \\frac{\\sin x}x and \\frac{\\sin x}{x}", () => {
     expect(latexEquals("\\frac{\\sin x}x", "\\frac{\\sin x}{x}")).toBe(true);
   });
-  it("\\frac{\\pi}2 ⇔ \\frac{\\pi}{2}", () => {
+  it("matches \\frac{\\pi}2 and \\frac{\\pi}{2}", () => {
     expect(latexEquals("\\frac{\\pi}2", "\\frac{\\pi}{2}")).toBe(true);
   });
-  it("ディリクレ積分: 実入力（\\frac{A}B + \\mathrm dx）が模範に一致", () => {
+  it("Dirichlet integral: real input with \\frac{A}B and \\mathrm dx matches the model answer", () => {
     expect(
       latexEquals(
         "\\int_0^\\infty\\frac{\\sin x}x\\mathrm dx =\\frac{\\pi}2",
@@ -184,23 +184,23 @@ describe("latexEquals: \\frac{A}B（分母が1文字・中括弧省略）", () =
   });
 });
 
-describe("latexEquals: physics の \\pdv / \\dv（省略可能な階数）", () => {
-  it("\\pdv[2]{x}{t} ⇔ \\frac{\\partial^2 x}{\\partial t^2}", () => {
+describe("latexEquals: physics \\pdv / \\dv with optional order", () => {
+  it("matches \\pdv[2]{x}{t} and \\frac{\\partial^2 x}{\\partial t^2}", () => {
     expect(
       latexEquals("\\pdv[2]{x}{t}", "\\frac{\\partial^2 x}{\\partial t^2}"),
     ).toBe(true);
   });
-  it("\\pdv{f}{x} ⇔ \\frac{\\partial f}{\\partial x}", () => {
+  it("matches \\pdv{f}{x} and \\frac{\\partial f}{\\partial x}", () => {
     expect(latexEquals("\\pdv{f}{x}", "\\frac{\\partial f}{\\partial x}")).toBe(
       true,
     );
   });
-  it("\\dv[2]{x}{t} ⇔ \\frac{\\mathrm{d}^2 x}{\\mathrm{d} t^2}", () => {
+  it("matches \\dv[2]{x}{t} and \\frac{\\mathrm{d}^2 x}{\\mathrm{d} t^2}", () => {
     expect(
       latexEquals("\\dv[2]{x}{t}", "\\frac{\\mathrm{d}^2 x}{\\mathrm{d} t^2}"),
     ).toBe(true);
   });
-  it("1次元波動方程式: \\pdv[2] 記法 ⇔ 素の \\partial 記法", () => {
+  it("one-dimensional wave equation: \\pdv[2] notation matches raw \\partial notation", () => {
     expect(
       latexEquals(
         "\\pdv[2]{u}{t} = c^2 \\pdv[2]{u}{x}",
@@ -208,13 +208,13 @@ describe("latexEquals: physics の \\pdv / \\dv（省略可能な階数）", () 
       ),
     ).toBe(true);
   });
-  it("階数が違えば不正解", () => {
+  it("rejects different derivative orders", () => {
     expect(latexEquals("\\pdv[2]{x}{t}", "\\pdv[3]{x}{t}")).toBe(false);
   });
 });
 
-describe("latexEquals: スクリーンショットの実ケース（AST比較）", () => {
-  it("立方数の和: 上付き・下付きの順序が逆でも可", () => {
+describe("latexEquals: real screenshot cases using AST comparison", () => {
+  it("sum of cubes: superscript and subscript order may be reversed", () => {
     expect(
       latexEquals(
         "\\sum^n_{k=1}k^3=\\left\\{ \\frac{n(n+1)}{2}\\right\\}^2",
@@ -222,7 +222,7 @@ describe("latexEquals: スクリーンショットの実ケース（AST比較）
       ),
     ).toBe(true);
   });
-  it("倍角: スペースの有無", () => {
+  it("double angle: spaces are optional", () => {
     expect(
       latexEquals(
         "\\cos2\\theta=1-2\\sin^2\\theta",
@@ -230,12 +230,12 @@ describe("latexEquals: スクリーンショットの実ケース（AST比較）
       ),
     ).toBe(true);
   });
-  it("単振り子: \\sqrt\\frac lg（中括弧省略）", () => {
+  it("simple pendulum: \\sqrt\\frac lg with omitted braces", () => {
     expect(
       latexEquals("T=2\\pi\\sqrt\\frac lg", "T = 2\\pi\\sqrt{\\frac{l}{g}}"),
     ).toBe(true);
   });
-  it("組合せ: {}_n と _n（空の中括弧の有無）", () => {
+  it("combinations: {}_n and _n with or without empty braces", () => {
     expect(
       latexEquals(
         "_n\\mathrm{C}_r = \\frac{n!}{r!(n-r)!}",
@@ -243,7 +243,7 @@ describe("latexEquals: スクリーンショットの実ケース（AST比較）
       ),
     ).toBe(true);
   });
-  it("ベッセル: 多重プライム ^{\\prime\\prime} ⇔ ''", () => {
+  it("Bessel: multiple primes ^{\\prime\\prime} and '' are equivalent", () => {
     expect(
       latexEquals(
         "x^2y^{\\prime\\prime} + xy^\\prime + (x^2 - n^2) y = 0",
@@ -251,12 +251,12 @@ describe("latexEquals: スクリーンショットの実ケース（AST比較）
       ),
     ).toBe(true);
   });
-  it("ブラケット: \\langle\\phi\\vert\\psi\\rangle ⇔ \\braket{\\phi|\\psi}", () => {
+  it("braket: \\langle\\phi\\vert\\psi\\rangle matches \\braket{\\phi|\\psi}", () => {
     expect(
       latexEquals("\\langle \\phi\\vert\\psi\\rangle", "\\braket{\\phi|\\psi}"),
     ).toBe(true);
   });
-  it("bra/ket も手書きデリミタと一致", () => {
+  it("bra and ket also match handwritten delimiters", () => {
     expect(latexEquals("\\langle \\psi|", "\\bra{\\psi}")).toBe(true);
     expect(latexEquals("|\\psi\\rangle", "\\ket{\\psi}")).toBe(true);
   });
