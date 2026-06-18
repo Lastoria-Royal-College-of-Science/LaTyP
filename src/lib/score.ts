@@ -1,21 +1,21 @@
 import { DIFFICULTY_INFO, type Problem } from "../data/problems";
 
-/** 数式の実質文字数（空白除外） */
+/** Effective formula length, excluding whitespace. */
 export function latexLength(problem: Problem): number {
   return problem.latex.replace(/\s+/g, "").length;
 }
 
 export type ScoreBreakdown = {
-  /** 基本点 = 数式の長さ × 難易度倍率 × 10 */
+  /** Base points = formula length × difficulty multiplier × 10. */
   base: number;
-  /** タイムボーナス = 余った秒数 × 難易度倍率 × 5 */
+  /** Time bonus = remaining seconds × difficulty multiplier × 5. */
   timeBonus: number;
   total: number;
 };
 
 /**
- * 正解した問題のスコア内訳を計算する。
- * 個別の問題点（基本点）に加えて、余った時間に応じたタイムボーナスを加算。
+ * Calculates the score breakdown for a correctly answered question.
+ * Adds a time bonus based on the remaining time to the question's base points.
  */
 export function scoreBreakdownFor(
   problem: Problem,
@@ -32,14 +32,14 @@ export type QuestionStatus = "correct" | "incorrect" | "pass" | "timeout";
 export type QuestionResult = {
   problem: Problem;
   status: QuestionStatus;
-  /** 合計スコア（基本点＋タイムボーナス）。不正解/Pass/時間切れは0 */
+  /** Total score: base points + time bonus. Incorrect/pass/timeout answers score 0. */
   score: number;
-  /** 基本点 */
+  /** Base points. */
   base: number;
-  /** タイムボーナス */
+  /** Time bonus. */
   timeBonus: number;
-  /** 正解時の残り秒数 */
+  /** Remaining seconds when answered correctly. */
   remaining: number;
-  /** 最後に入力していた内容 */
+  /** Final input entered by the player. */
   finalInput: string;
 };
