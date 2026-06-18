@@ -23,7 +23,7 @@ type Props = {
 type Feedback = "correct" | "wrong" | "pass" | "timeout" | null;
 
 const TICK_MS = 100;
-/** この秒数以内に Pass した場合はノーカウントで別の問題に差し替える */
+/** Passing within this many seconds swaps in another question without counting it. */
 const FREE_PASS_SECONDS = 5;
 
 export default function GameScreen({
@@ -46,7 +46,7 @@ export default function GameScreen({
   const resultsRef = useRef<QuestionResult[]>([]);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const transitioningRef = useRef(false);
-  // これまでに表示した問題 ID（差し替え時の重複回避に使う）
+  // Question IDs that have already appeared; used to avoid duplicates during swaps.
   const seenIdsRef = useRef<Set<string>>(
     new Set(initialProblems.map((p) => p.id)),
   );
@@ -54,7 +54,7 @@ export default function GameScreen({
   const problem = problems[index];
   const timeLimit = timeLimitFor(problem);
   const info = DIFFICULTY_INFO[difficulty];
-  // 出題から FREE_PASS_SECONDS 秒以内かどうか
+  // Whether the current question is still within the free-pass window.
   const inFreeWindow = timeLimit - timeLeft <= FREE_PASS_SECONDS;
 
   const goNext = useCallback(
@@ -94,7 +94,7 @@ export default function GameScreen({
     [index, problems, onFinish],
   );
 
-  // タイマー
+  // Timer
   useEffect(() => {
     const id = window.setInterval(() => {
       if (transitioningRef.current) return;
@@ -106,7 +106,7 @@ export default function GameScreen({
     return () => window.clearInterval(id);
   }, [index]);
 
-  // 時間切れ判定
+  // Timeout handling
   useEffect(() => {
     if (timeLeft > 0 || transitioningRef.current) return;
     goNext({
@@ -146,10 +146,10 @@ export default function GameScreen({
     }
   };
 
-  /** 5 秒以内の Pass: 未出題の問題に差し替える。差し替えできたら true */
+  /** Free pass within 5 seconds: swap in an unused question. Returns true if swapped. */
   const trySwapProblem = () => {
     const next = pickUnusedProblem(difficulty, seenIdsRef.current);
-    if (!next) return false; // 差し替え候補が尽きたら通常 Pass にフォールバック
+    if (!next) return false; // Fall back to a normal pass when no replacement remains.
     seenIdsRef.current.add(next.id);
     setProblems((prev) => {
       const copy = [...prev];
@@ -168,7 +168,7 @@ export default function GameScreen({
 
   const pass = () => {
     if (transitioningRef.current) return;
-    // 最初の 5 秒以内なら不正解にせず別の問題を提供（ノーカウント）
+    // Within the first 5 seconds, provide another question without marking this one wrong.
     if (inFreeWindow && trySwapProblem()) return;
     goNext({
       problem,
@@ -201,10 +201,10 @@ export default function GameScreen({
 
   return (
     <div className="min-h-screen flex flex-col items-center px-4 py-8">
-      {/* ヘッダー */}
+      {/* Header */}
       <div className="w-full max-w-3xl flex items-center justify-between text-sm text-gray-500">
         <span className="font-semibold">
-          {info.name}　第 {index + 1} / {problems.length} 問
+          {info.name} Question {index + 1} / {problems.length}
         </span>
         <span className="text-lg font-bold text-gray-800 tabular-nums">
           SCORE {totalScore.toLocaleString()}
@@ -212,14 +212,14 @@ export default function GameScreen({
             <span className="ml-2 text-emerald-500 animate-score-pop inline-block">
               +{lastGain.total.toLocaleString()}
               <span className="ml-1 text-xs font-semibold text-emerald-400">
-                （基本{lastGain.base} + 時間{lastGain.timeBonus}）
+                (base {lastGain.base} + time {lastGain.timeBonus})
               </span>
             </span>
           )}
         </span>
       </div>
 
-      {/* タイマーバー */}
+      {/* Timer bar */}
       <div className="w-full max-w-3xl mt-3">
         <div className="h-2.5 bg-gray-200 rounded-full overflow-hidden">
           <div
@@ -233,13 +233,13 @@ export default function GameScreen({
               swapNotice ? "opacity-100" : "opacity-0"
             }`}
           >
-            別の問題に交換しました（ノーカウント）
+            Swapped to another question without counting this one.
           </span>
-          <span className="text-gray-400">残り {Math.ceil(timeLeft)} 秒</span>
+          <span className="text-gray-400">{Math.ceil(timeLeft)} seconds left</span>
         </div>
       </div>
 
-      {/* お手本数式 */}
+      {/* Target formula */}
       <div
         className={`relative w-full max-w-3xl mt-4 bg-white rounded-2xl border-2 shadow-sm p-8 flex flex-col items-center justify-center min-h-36 transition-colors ${
           feedback === "correct"
@@ -248,38 +248,38 @@ export default function GameScreen({
         }`}
       >
         <span className="absolute top-3 left-4 text-xs font-semibold text-gray-400">
-          お手本
+          Target
         </span>
         <LatexRenderer latex={problem.latex} className="text-xl text-gray-800" />
         {feedback === "correct" && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <span className="text-5xl font-black text-emerald-500/90 animate-stamp">
-              正解！
+              Correct!
             </span>
           </div>
         )}
         {(feedback === "pass" || feedback === "timeout") && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none bg-white/70 rounded-2xl">
             <span className="text-4xl font-black text-gray-400 animate-stamp">
-              {feedback === "pass" ? "PASS" : "時間切れ"}
+              {feedback === "pass" ? "PASS" : "TIME UP"}
             </span>
           </div>
         )}
       </div>
 
-      {/* 入力プレビュー */}
+      {/* Input preview */}
       <div className="w-full max-w-3xl mt-4 bg-white rounded-2xl border-2 border-gray-200 shadow-sm p-6 flex flex-col items-center justify-center min-h-28 relative">
         <span className="absolute top-3 left-4 text-xs font-semibold text-gray-400">
-          あなたの入力
+          Your input
         </span>
         <LatexRenderer
           latex={input}
           className="text-xl text-blue-700"
-          fallback="ここにリアルタイムでレンダリングされます"
+          fallback="Your rendered input will appear here in real time."
         />
       </div>
 
-      {/* 入力フォーム */}
+      {/* Input form */}
       <div
         className={`w-full max-w-3xl mt-4 ${feedback === "wrong" ? "animate-shake" : ""}`}
       >
@@ -290,7 +290,7 @@ export default function GameScreen({
           onKeyDown={handleKeyDown}
           rows={2}
           spellCheck={false}
-          placeholder="LaTeX を入力（例: \frac{1}{2}）— Enter で判定"
+          placeholder="Enter LaTeX (example: \frac{1}{2}) — press Enter to submit"
           className="w-full font-mono text-lg bg-white border-2 border-gray-300 focus:border-blue-500 focus:outline-none rounded-xl px-4 py-3 resize-none shadow-sm"
         />
         <div className="flex items-center justify-between mt-3">
@@ -298,8 +298,8 @@ export default function GameScreen({
             onClick={pass}
             title={
               inFreeWindow
-                ? "最初の5秒以内：ノーカウントで別の問題に交換"
-                : "この問題をスキップ（0点）"
+                ? "Within the first 5 seconds: swap to another question without counting this one"
+                : "Skip this question for 0 points"
             }
             className={`px-5 py-2.5 rounded-xl border-2 font-semibold transition-colors cursor-pointer ${
               inFreeWindow
@@ -307,18 +307,18 @@ export default function GameScreen({
                 : "border-gray-300 text-gray-500 hover:bg-gray-100"
             }`}
           >
-            {inFreeWindow ? "別の問題へ（Esc・ノーカウント）" : "Pass（Esc）"}
+            {inFreeWindow ? "Another question (Esc, no count)" : "Pass (Esc)"}
           </button>
           {feedback === "wrong" && (
             <span className="text-red-500 font-semibold text-sm">
-              まだ一致していません…
+              Not a match yet...
             </span>
           )}
           <button
             onClick={submit}
             className="px-8 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold transition-colors shadow cursor-pointer"
           >
-            判定（Enter）
+            Check (Enter)
           </button>
         </div>
       </div>
