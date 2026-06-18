@@ -10,10 +10,10 @@ type Props = {
 };
 
 const STATUS_LABEL: Record<QuestionStatus, { text: string; cls: string }> = {
-  correct: { text: "正解", cls: "bg-emerald-100 text-emerald-700" },
-  incorrect: { text: "不正解", cls: "bg-red-100 text-red-600" },
+  correct: { text: "Correct", cls: "bg-emerald-100 text-emerald-700" },
+  incorrect: { text: "Incorrect", cls: "bg-red-100 text-red-600" },
   pass: { text: "Pass", cls: "bg-gray-200 text-gray-500" },
-  timeout: { text: "時間切れ", cls: "bg-amber-100 text-amber-600" },
+  timeout: { text: "Time up", cls: "bg-amber-100 text-amber-600" },
 };
 
 export default function ResultScreen({
@@ -34,23 +34,23 @@ export default function ResultScreen({
 
   return (
     <div className="min-h-screen flex flex-col items-center px-4 py-10">
-      <h1 className="text-3xl font-bold text-gray-800">リザルト</h1>
+      <h1 className="text-3xl font-bold text-gray-800">Results</h1>
       <p className="text-gray-400 mt-1 text-sm">
-        {DIFFICULTY_INFO[difficulty].name}（倍率 ×
-        {DIFFICULTY_INFO[difficulty].multiplier.toFixed(1)}）
+        {DIFFICULTY_INFO[difficulty].name} (×
+        {DIFFICULTY_INFO[difficulty].multiplier.toFixed(1)} multiplier)
       </p>
 
-      {/* サマリー */}
+      {/* Summary */}
       <div className="mt-6 w-full max-w-3xl bg-white rounded-2xl border-2 border-gray-200 shadow-sm p-8 flex flex-col items-center">
         <span className="text-sm font-semibold text-gray-400">SCORE</span>
         <span className="text-6xl font-black text-gray-800 tabular-nums animate-score-pop">
           {total.toLocaleString()}
         </span>
         <span className="mt-1 text-sm text-gray-400 tabular-nums">
-          基本点 {totalBase.toLocaleString()} ＋ タイムボーナス{" "}
+          Base points {totalBase.toLocaleString()} + time bonus{" "}
           {totalBonus.toLocaleString()}
         </span>
-        <span className="mt-2 text-gray-500">正解率 {accuracy}%</span>
+        <span className="mt-2 text-gray-500">Accuracy {accuracy}%</span>
         <div className="mt-5 grid grid-cols-4 gap-3 w-full max-w-md text-center">
           {(["correct", "incorrect", "pass", "timeout"] as QuestionStatus[]).map(
             (st) => (
@@ -72,21 +72,21 @@ export default function ResultScreen({
             onClick={onRetry}
             className="px-8 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold transition-colors shadow cursor-pointer"
           >
-            もう一度挑戦
+            Try Again
           </button>
           <button
             onClick={onHome}
             className="px-8 py-3 rounded-xl border-2 border-gray-300 text-gray-600 font-semibold hover:bg-gray-100 transition-colors cursor-pointer"
           >
-            難易度選択へ
+            Back to Difficulty Select
           </button>
         </div>
       </div>
 
-      {/* 復習一覧 */}
-      <h2 className="mt-10 text-xl font-bold text-gray-700">復習</h2>
+      {/* Review list */}
+      <h2 className="mt-10 text-xl font-bold text-gray-700">Review</h2>
       <p className="text-sm text-gray-400 mt-1">
-        お手本の数式と模範 LaTeX コードを確認しよう
+        Check the target formulas and the model LaTeX code.
       </p>
       <div className="mt-4 w-full max-w-3xl flex flex-col gap-4">
         {results.map((r, i) => (
@@ -111,7 +111,7 @@ export default function ResultScreen({
                   +{r.score.toLocaleString()}
                   {r.status === "correct" && (
                     <span className="ml-1 text-xs font-normal text-gray-400">
-                      （基本{r.base} + 時間{r.timeBonus}）
+                      (base {r.base} + time {r.timeBonus})
                     </span>
                   )}
                 </span>
@@ -128,7 +128,7 @@ export default function ResultScreen({
             </pre>
             {r.status !== "correct" && r.finalInput.trim() && (
               <div className="mt-3 text-sm text-gray-400">
-                <span className="font-semibold">あなたの入力：</span>
+                <span className="font-semibold">Your input: </span>
                 <code className="font-mono text-red-400 break-all">
                   {r.finalInput}
                 </code>
